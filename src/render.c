@@ -3,6 +3,9 @@
 #include "render.h"
 #include "input.h"
 
+#include "cimgui.h"
+#include "imgui_impl.h"
+
 uint8_t *framebuffer0;
 uint8_t *framebuffer1;
 int fbwidth, fbheight;
@@ -55,6 +58,11 @@ int render_init(int vertical)
 	// Allocate framebuffers
 	render_resize(64, 32);
 
+	// Initialize Dear ImGui
+	igCreateContext(NULL);
+	ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+	ImGui_ImplSDLRenderer_Init(renderer);
+
 	return 1;
 }
 
@@ -62,6 +70,10 @@ void render_quit()
 {
 	free((void *) framebuffer0);
 	free((void *) framebuffer1);
+
+	ImGui_ImplSDLRenderer_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	igDestroyContext(NULL);
 
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
@@ -121,6 +133,8 @@ int render_new_frame()
 
 	while (SDL_PollEvent(&e))
 	{
+		ImGui_ImplSDL2_ProcessEvent(&e);
+
 		switch (e.type)
 		{
 		case SDL_QUIT:
@@ -151,6 +165,15 @@ void render()
 	{
 		SDL_RenderCopy(renderer, fbtex, NULL, NULL);
 	}
+
+	ImGui_ImplSDLRenderer_NewFrame();
+	ImGui_ImplSDL2_NewFrame();
+	igNewFrame();
+
+	igShowDemoWindow(NULL);
+
+	igRender();
+	ImGui_ImplSDLRenderer_RenderDrawData((int *) igGetDrawData());
 
 	SDL_RenderPresent(renderer);
 }

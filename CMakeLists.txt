@@ -1,15 +1,24 @@
 cmake_minimum_required(VERSION 3.22)
-project(dbchip C)
+project(dbchip C CXX)
 
 set(CMAKE_C_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17)
 
-add_executable(dbchip src/main.c src/vm.c src/vm.h src/render.c src/render.h src/timing.h src/decode.c src/input.c src/input.h)
+add_executable(dbchip src/main.c src/vm.c src/vm.h src/render.c src/render.h src/timing.h src/decode.c src/input.c src/input.h src/imgui_impl.h)
 
 if(WIN32)
 	# TODO
 else()
 	target_sources(dbchip PRIVATE src/timing_linux.c)
 endif()
+
+# ImGui
+add_subdirectory(src/cimgui)
+target_link_libraries(dbchip PRIVATE cimgui)
+
+# ImGui backends
+target_sources(dbchip PRIVATE src/cimgui/imgui/backends/imgui_impl_sdl.cpp src/cimgui/imgui/backends/imgui_impl_sdlrenderer.cpp)
+target_compile_definitions(dbchip PRIVATE "-DIMGUI_IMPL_API=extern \"C\" " "-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1")
 
 # SDL2 Dependency
 if (DEFINED SDL2_INCLUDE_DIRS AND DEFINED SDL2_LIBRARIES)
