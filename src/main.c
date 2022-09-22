@@ -22,7 +22,7 @@ int main(int argc, char **argv)
 
 	// Parse flags
 	int vertical = 0;
-	unsigned int speed = 10000;
+	unsigned int speed = 4096;
 
 	int i;
 	for (i = 1; i < argc && argv[i][0] == '-'; ++i)
