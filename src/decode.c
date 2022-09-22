@@ -45,7 +45,7 @@ static uint8_t arithmetic(uint8_t n, uint8_t x, uint8_t y, int *flag)
 	}
 	case 0xE:
 	{
-		*flag = (y & 0b1000000) >> 7;
+		*flag = y >> 7;
 		return y << 1;
 	}
 	default:
@@ -60,16 +60,16 @@ static void draw8(uint8_t x, uint8_t y, uint8_t n)
 
 	for (int j = 0; j < n && (y % fbheight) + j < fbheight; ++j)
 	{
-		uint16_t fbrow = (framebuffer[x / 8 + ((y % fbheight) + j) * (fbwidth / 8)] << 8) | (x + 8 < fbwidth ? framebuffer[x / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] : 0);
-		uint16_t sprrow = ((memory[(addr + j) % 0x1000]) << 8) >> (x % 8);
+		uint16_t fbrow = (framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] << 8) | ((x % fbwidth) + 8 < fbwidth ? framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] : 0);
+		uint16_t sprrow = ((memory[(addr + j) % 0x1000]) << 8) >> ((x % fbwidth) % 8);
 
 		regs[0xF] = regs[0xF] || (sprrow & fbrow);
 
 		fbrow ^= sprrow;
 
-		framebuffer[x / 8 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow >> 8;
-		if (x + 8 < fbwidth)
-			framebuffer[x / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow & 0xFF;
+		framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow >> 8;
+		if ((x % fbwidth) + 8 < fbwidth)
+			framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow & 0xFF;
 	}
 }
 
@@ -79,21 +79,21 @@ static void draw16(uint8_t x, uint8_t y)
 
 	for (int j = 0; j < 16 && (y % fbheight) + j < fbheight; ++j)
 	{
-		uint32_t fbrow = (framebuffer[x / 8 + ((y % fbheight) + j) * (fbwidth / 8)] << 16)
-			| ((x + 8 < fbwidth ? framebuffer[x / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] : 0) << 8)
-			| (x + 16 < fbwidth ? framebuffer[x / 8 + 2 + ((y % fbheight) + j) * (fbwidth / 8)] : 0);
+		uint32_t fbrow = (framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] << 16)
+			| (((x % fbwidth) + 8 < fbwidth ? framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] : 0) << 8)
+			| ((x % fbwidth) + 16 < fbwidth ? framebuffer[(x % fbwidth) / 8 + 2 + ((y % fbheight) + j) * (fbwidth / 8)] : 0);
 
-		uint32_t sprrow = (((memory[(addr + j * 2) % 0x1000]) << 16) | ((memory[(addr + j * 2 + 1) % 0x1000]) << 8)) >> (x % 8);
+		uint32_t sprrow = (((memory[(addr + j * 2) % 0x1000]) << 16) | ((memory[(addr + j * 2 + 1) % 0x1000]) << 8)) >> ((x % fbwidth) % 8);
 
 		regs[0xF] = regs[0xF] || (sprrow & fbrow);
 
 		fbrow ^= sprrow;
 
-		framebuffer[x / 8 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow >> 16;
-		if (x + 8 < fbwidth)
-			framebuffer[x / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] = (fbrow >> 8) & 0xFF;
-		if (x + 16 < fbwidth)
-			framebuffer[x / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] = (fbrow >> 16) & 0xFF;
+		framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow >> 16;
+		if ((x % fbwidth) + 8 < fbwidth)
+			framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] = (fbrow >> 8) & 0xFF;
+		if ((x % fbwidth) + 16 < fbwidth)
+			framebuffer[(x % fbwidth) / 8 + 2 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow & 0xFF;
 	}
 }
 
@@ -289,7 +289,7 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 		case 0x1E:
 		{
 			// Add X to I
-			addr = (addr + regs[x]) % 0x1000;
+			addr = addr + regs[x];
 		} break;
 		case 0x29:
 		{

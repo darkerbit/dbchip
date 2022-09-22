@@ -132,9 +132,17 @@ void render()
 {
 	blit();
 
-	SDL_Rect dstrect = { 0, 0, fb_vertical ? 640 : 1280, fb_vertical ? 320 : 640 };
-	SDL_Point center = { 640 / 2, 320 };
+	if (fb_vertical)
+	{
+		SDL_Rect dstrect = { 0, 0, 640, 320 };
+		SDL_Point center = { 640 / 2, 320 };
 
-	SDL_RenderCopyEx(renderer, fbtex, NULL, &dstrect, fb_vertical ? -90 : 0, &center, SDL_FLIP_NONE);
+		SDL_RenderCopyEx(renderer, fbtex, NULL, &dstrect, -90, &center, SDL_FLIP_NONE);
+	}
+	else
+	{
+		SDL_RenderCopy(renderer, fbtex, NULL, NULL);
+	}
+
 	SDL_RenderPresent(renderer);
 }
