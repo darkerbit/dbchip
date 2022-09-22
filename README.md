@@ -37,3 +37,5 @@ There is an abstraction layer so I could add a Windows timer system at some poin
 ![Screenshot of the CHIP-8 TETRIS clone](screenshots/tetris.png)
 
 ![Screenshot of sub8.ch8, in vertical mode](screenshots/sub8.png)
+
+![Screenshot of a Peggle clone](screenshots/peggle.png)
