@@ -3,8 +3,7 @@
 This is an emulator for [the CHIP-8 virtual machine](https://en.wikipedia.org/wiki/CHIP-8),
 an interpreted programming language that people have been making games with since the 1970s.
 
-It doesn't have sound, but it does emulate the  rest of the CHIP-8 and SCHIP instruction sets, and also has a custom
-instruction that no assembler in the world can emit yet whoops
+It doesn't have sound, but it does emulate the  rest of the CHIP-8, SCHIP and XO-CHIP instruction sets.
 
 ## How use?
 

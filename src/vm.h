@@ -24,6 +24,8 @@ extern uint16_t addr;
 
 extern uint8_t flags[16];
 
+extern uint8_t plane;
+
 extern uint8_t delay;
 
 extern int waitreg;

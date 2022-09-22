@@ -6,7 +6,7 @@
 #include "render.h"
 #include "input.h"
 
-#define SKIP(COND) { if (COND) { pc += 2; } } break
+#define SKIP(COND) { if (COND) { int b1 = memory[pc++]; int b2 = memory[pc++]; if ((b1 >> 4) == 0xF && b2 == 0x00) { pc += 2; } } } break
 
 static uint8_t arithmetic(uint8_t n, uint8_t x, uint8_t y, int *flag)
 {
@@ -34,7 +34,7 @@ static uint8_t arithmetic(uint8_t n, uint8_t x, uint8_t y, int *flag)
 	}
 	case 0x6:
 	{
-		*flag = y & 1;
+		*flag = (y & 1);
 		return y >> 1;
 	}
 	case 0x7:
@@ -45,7 +45,7 @@ static uint8_t arithmetic(uint8_t n, uint8_t x, uint8_t y, int *flag)
 	}
 	case 0xE:
 	{
-		*flag = y >> 7;
+		*flag = (y >> 7);
 		return y << 1;
 	}
 	default:
@@ -54,47 +54,56 @@ static uint8_t arithmetic(uint8_t n, uint8_t x, uint8_t y, int *flag)
 	}
 }
 
-static void draw8(uint8_t x, uint8_t y, uint8_t n)
+static void draw8(uint8_t x, uint8_t y, uint8_t n, uint8_t *bitplane)
 {
-	regs[0xF] = 0;
+	uint8_t xp = x % fbwidth;
+	uint8_t yp = y % fbheight;
 
-	for (int j = 0; j < n && (y % fbheight) + j < fbheight; ++j)
+	for (int j = 0; j < n && yp + j < fbheight; ++j)
 	{
-		uint16_t fbrow = (framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] << 8) | ((x % fbwidth) + 8 < fbwidth ? framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] : 0);
-		uint16_t sprrow = ((memory[(addr + j) % 0x1000]) << 8) >> ((x % fbwidth) % 8);
+		uint16_t fbrow = (bitplane[xp / 8 + (yp + j) * fbpitch] << 8) | (xp + 8 < fbwidth ? bitplane[xp / 8 + 1 + (yp + j) * fbpitch] : 0);
+		uint16_t sprrow = (memory[(addr + j) % 0x10000] << 8) >> (xp % 8);
 
-		regs[0xF] = regs[0xF] || (sprrow & fbrow);
+		regs[0xF] = regs[0xF] || (fbrow & sprrow);
 
 		fbrow ^= sprrow;
 
-		framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow >> 8;
-		if ((x % fbwidth) + 8 < fbwidth)
-			framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow & 0xFF;
+		bitplane[xp / 8 + (yp + j) * fbpitch] = fbrow >> 8;
+
+		if (xp + 8 < fbwidth)
+			bitplane[xp / 8 + 1 + (yp + j) * fbpitch] = fbrow & 0xFF;
 	}
+
+	addr += n;
 }
 
-static void draw16(uint8_t x, uint8_t y)
+static void draw16(uint8_t x, uint8_t y, uint8_t *bitplane)
 {
-	regs[0xF] = 0;
+	uint8_t xp = x % fbwidth;
+	uint8_t yp = y % fbheight;
 
-	for (int j = 0; j < 16 && (y % fbheight) + j < fbheight; ++j)
+	for (int j = 0; j < 16 && yp + j < fbheight; ++j)
 	{
-		uint32_t fbrow = (framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] << 16)
-			| (((x % fbwidth) + 8 < fbwidth ? framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] : 0) << 8)
-			| ((x % fbwidth) + 16 < fbwidth ? framebuffer[(x % fbwidth) / 8 + 2 + ((y % fbheight) + j) * (fbwidth / 8)] : 0);
+		uint32_t fbrow = (bitplane[xp / 8 + (yp + j) * fbpitch] << 16)
+			| (xp + 8 < fbwidth ? bitplane[xp / 8 + 1 + (yp + j) * fbpitch] << 8 : 0)
+			| (xp + 16 < fbwidth ? bitplane[xp / 8 + 2 + (yp + j) * fbpitch] : 0);
 
-		uint32_t sprrow = (((memory[(addr + j * 2) % 0x1000]) << 16) | ((memory[(addr + j * 2 + 1) % 0x1000]) << 8)) >> ((x % fbwidth) % 8);
+		uint32_t sprrow = ((memory[(addr + j * 2) % 0x10000] << 16) | (memory[(addr + j * 2 + 1) % 0x10000] << 8)) >> (xp % 8);
 
-		regs[0xF] = regs[0xF] || (sprrow & fbrow);
+		regs[0xF] = regs[0xF] || (fbrow & sprrow);
 
 		fbrow ^= sprrow;
 
-		framebuffer[(x % fbwidth) / 8 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow >> 16;
-		if ((x % fbwidth) + 8 < fbwidth)
-			framebuffer[(x % fbwidth) / 8 + 1 + ((y % fbheight) + j) * (fbwidth / 8)] = (fbrow >> 8) & 0xFF;
-		if ((x % fbwidth) + 16 < fbwidth)
-			framebuffer[(x % fbwidth) / 8 + 2 + ((y % fbheight) + j) * (fbwidth / 8)] = fbrow & 0xFF;
+		bitplane[xp / 8 + (yp + j) * fbpitch] = fbrow >> 16;
+
+		if (xp + 8 < fbwidth)
+			bitplane[xp / 8 + 1 + (yp + j) * fbpitch] = (fbrow >> 8) & 0xFF;
+
+		if (xp + 16 < fbwidth)
+			bitplane[xp / 8 + 2 + (yp + j) * fbpitch] = fbrow & 0xFF;
 	}
+
+	addr += 32;
 }
 
 void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t nnn)
@@ -112,16 +121,39 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 				break;
 			}
 
-			memmove(framebuffer + n * (fbwidth / 8), framebuffer, (fbwidth / 8) * fbheight - (n * fbwidth / 8));
-			memset(framebuffer, 0, (n * fbwidth / 8));
+			if (plane & 1)
+			{
+				memmove(framebuffer0 + n * fbpitch, framebuffer0, fbpitch * fbheight - (n * fbwidth / 8));
+				memset(framebuffer0, 0, (n * fbwidth / 8));
+			}
+
+			if (plane & 2)
+			{
+				memmove(framebuffer1 + n * fbpitch, framebuffer1, fbpitch * fbheight - (n * fbwidth / 8));
+				memset(framebuffer1, 0, (n * fbwidth / 8));
+			}
 
 			break;
-		}
-		else if (y == 0xD)
+		} else if (y == 0xD)
 		{
-			// 00DN: Set resolution to (n + 1) * 16, (n + 1) * 8 [DBCHIP]
-			render_resize((n + 1) * 16, (n + 1) * 8);
-			break;
+			// 00DN: Scroll screen up by N pixels [XO-CHIP]
+			if (n == 0)
+			{
+				// Nothing to do
+				break;
+			}
+
+			if (plane & 1)
+			{
+				memmove(framebuffer0, framebuffer0 + n * fbpitch, fbpitch * fbheight - (n * fbwidth / 8));
+				memset(framebuffer0 + fbpitch * fbheight - (n * fbwidth / 8), 0, (n * fbwidth / 8));
+			}
+
+			if (plane & 2)
+			{
+				memmove(framebuffer1, framebuffer1 + n * fbpitch, fbpitch * fbheight - (n * fbwidth / 8));
+				memset(framebuffer1 + fbpitch * fbheight - (n * fbwidth / 8), 0, (n * fbwidth / 8));
+			}
 		}
 
 		switch (nn)
@@ -129,7 +161,11 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 		case 0xE0:
 		{
 			// 00E0: Clear screen
-			memset(framebuffer, 0, (fbwidth / 8) * fbheight * sizeof(uint8_t));
+			if (plane & 1)
+				memset(framebuffer0, 0, fbpitch * fbheight * sizeof(uint8_t));
+
+			if (plane & 2)
+				memset(framebuffer1, 0, fbpitch * fbheight * sizeof(uint8_t));
 		} break;
 		case 0xEE:
 		{
@@ -141,16 +177,30 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 			// 00FB: Scroll screen right by four pixels [SCHIP]
 			for (int j = 0; j < fbheight; ++j)
 			{
-				int prev = 0;
+				int prev0 = 0;
+				int prev1 = 0;
 
 				for (int i = 0; i < fbwidth / 8; ++i)
 				{
-					int out = framebuffer[i + j * (fbwidth / 8)] & 0xF;
+					if (plane & 1)
+					{
+						int out0 = framebuffer0[i + j * fbpitch] & 0xF;
 
-					framebuffer[i + j * (fbwidth / 8)] >>= 4;
-					framebuffer[i + j * (fbwidth / 8)] |= (prev << 4);
+						framebuffer0[i + j * fbpitch] >>= 4;
+						framebuffer0[i + j * fbpitch] |= (prev0 << 4);
 
-					prev = out;
+						prev0 = out0;
+					}
+
+					if (plane & 2)
+					{
+						int out1 = framebuffer1[i + j * fbpitch] & 0xF;
+
+						framebuffer1[i + j * fbpitch] >>= 4;
+						framebuffer1[i + j * fbpitch] |= (prev1 << 4);
+
+						prev1 = out1;
+					}
 				}
 			}
 		} break;
@@ -159,16 +209,30 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 			// 00FC: Scroll screen left by four pixels [SCHIP]
 			for (int j = 0; j < fbheight; ++j)
 			{
-				int prev = 0;
+				int prev0 = 0;
+				int prev1 = 0;
 
 				for (int i = fbwidth / 8 - 1; i >= 0; --i)
 				{
-					int out = framebuffer[i + j * (fbwidth / 8)] & 0xF0;
+					if (plane & 1)
+					{
+						int out0 = framebuffer0[i + j * fbpitch] & 0xF0;
 
-					framebuffer[i + j * (fbwidth / 8)] <<= 4;
-					framebuffer[i + j * (fbwidth / 8)] |= (prev >> 4);
+						framebuffer0[i + j * fbpitch] <<= 4;
+						framebuffer0[i + j * fbpitch] |= (prev0 >> 4);
 
-					prev = out;
+						prev0 = out0;
+					}
+
+					if (plane & 2)
+					{
+						int out1 = framebuffer1[i + j * fbpitch] & 0xF0;
+
+						framebuffer1[i + j * fbpitch] <<= 4;
+						framebuffer1[i + j * fbpitch] |= (prev1 >> 4);
+
+						prev1 = out1;
+					}
 				}
 			}
 		} break;
@@ -202,9 +266,41 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 		vm_stack_push(pc);
 		pc = nnn;
 	} break;
-	case 0x3: SKIP(regs[x] == nn);		// 3XNN: Skip if X == NN
-	case 0x4: SKIP(regs[x] != nn);		// 4XNN: Skip if X != NN
-	case 0x5: SKIP(regs[x] == regs[y]);	// 5XY0: Skip if X == Y
+	case 0x3: SKIP(regs[x] == nn);			// 3XNN: Skip if X == NN
+	case 0x4: SKIP(regs[x] != nn);			// 4XNN: Skip if X != NN
+	case 0x5:
+	{
+		switch (n)
+		{
+		case 0x0: SKIP(regs[x] == regs[y]);	// 5XY0: Skip if X == Y
+		case 0x2:
+		{
+			// 5XY2: Save VX..VY to memory [XO-CHIP]
+			uint16_t addrbak = addr;
+
+			for (int i = x; (y >= x ? i <= y : i >= y); i += (y >= x ? 1 : -1))
+			{
+				memory[(addr++) % 0x10000] = regs[i];
+			}
+
+			addr = addrbak;
+		} break;
+		case 0x3:
+		{
+			// 5XY3: Load VX..VY from memory [XO-CHIP]
+			uint16_t addrbak = addr;
+
+			for (int i = x; (y >= x ? i <= y : i >= y); i += (y >= x ? 1 : -1))
+			{
+				regs[i] = memory[(addr++) % 0x10000];
+			}
+
+			addr = addrbak;
+		} break;
+		default:
+			fprintf(stderr, "unknown opcode 5XY%01X\n", nn);
+		}
+	} break;
 	case 0x6:
 	{
 		// 6XNN: Store NN in X
@@ -232,7 +328,7 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 	case 0xB:
 	{
 		// BNNN: Jump to NNN + V0
-		pc = (nnn + regs[0]) % 0x1000;
+		pc = (nnn + regs[0]);
 	} break;
 	case 0xC:
 	{
@@ -241,16 +337,30 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 	} break;
 	case 0xD:
 	{
+		regs[0xF] = 0;
+
+		uint16_t addrbak = addr;
+
 		if (n == 0)
 		{
 			// DXY0: Draw a 16x16 sprite at X, Y [SCHIP]
-			draw16(regs[x], regs[y]);
+			if (plane & 1)
+				draw16(regs[x], regs[y], framebuffer0);
+
+			if (plane & 2)
+				draw16(regs[x], regs[y], framebuffer1);
 		}
 		else
 		{
 			// DXYN: Draw a 8xN sprite at X, Y
-			draw8(regs[x], regs[y], n);
+			if (plane & 1)
+				draw8(regs[x], regs[y], n, framebuffer0);
+
+			if (plane & 2)
+				draw8(regs[x], regs[y], n, framebuffer1);
 		}
+
+		addr = addrbak;
 	} break;
 	case 0xE:
 	{
@@ -266,6 +376,24 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 	{
 		switch (nn)
 		{
+		case 0x00:
+		{
+			// F000: Load 16-bit value into I [XO-CHIP]
+			uint8_t b1 = memory[(pc++) % 0x10000];
+			uint8_t b2 = memory[(pc++) % 0x10000];
+
+			addr = (b1 << 8) | b2;
+		} break;
+		case 0x01:
+		{
+			// FN01: Set bitplane for drawing [XO-CHIP]
+			plane = x;
+		} break;
+		case 0x02:
+		{
+			// F002: Load audio buffer from memory [XO-CHIP]
+			// NO-OP, no audio yet
+		}
 		case 0x07:
 		{
 			// Set X to delay
@@ -304,16 +432,21 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 		case 0x33:
 		{
 			// BCD X into memory
-			memory[addr]	 = regs[x] / 100;
-			memory[addr + 1] = (regs[x] / 10) % 10;
-			memory[addr + 2] = regs[x] % 10;
+			memory[addr % 0x10000]			= regs[x] / 100;
+			memory[(addr + 1) % 0x10000]	= (regs[x] / 10) % 10;
+			memory[(addr + 2) % 0x10000]	= regs[x] % 10;
+		} break;
+		case 0x3A:
+		{
+			// FX3A: Set audio pitch [XO-CHIP]
+			// NOOP, no sound yet
 		} break;
 		case 0x55:
 		{
 			// Store V0..VX into memory
 			for (int i = 0; i <= x; ++i)
 			{
-				memory[(addr++) % 0x1000] = regs[i];
+				memory[(addr++) % 0x10000] = regs[i];
 			}
 		} break;
 		case 0x65:
@@ -321,12 +454,12 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 			// Load V0..VX from memory
 			for (int i = 0; i <= x; ++i)
 			{
-				regs[i] = memory[(addr++) % 0x1000];
+				regs[i] = memory[(addr++) % 0x10000];
 			}
 		} break;
 		case 0x75:
 		{
-			// Save V0..VX to flags [SCHIP]
+			// Save V0..VX to flags [SCHIP, full set from XO-CHIP]
 			for (int i = 0; i <= x; ++i)
 			{
 				flags[i] = regs[i];
@@ -334,7 +467,7 @@ void vm_decode(uint8_t s, uint8_t x, uint8_t y, uint8_t n, uint8_t nn, uint16_t 
 		} break;
 		case 0x85:
 		{
-			// Load V0..VX from flags [SCHIP]
+			// Load V0..VX from flags [SCHIP, full set from XO-CHIP]
 			for (int i = 0; i <= x; ++i)
 			{
 				regs[i] = flags[i];

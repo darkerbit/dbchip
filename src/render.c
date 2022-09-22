@@ -3,8 +3,10 @@
 #include "render.h"
 #include "input.h"
 
-uint8_t *framebuffer;
+uint8_t *framebuffer0;
+uint8_t *framebuffer1;
 int fbwidth, fbheight;
+int fbpitch;
 
 static SDL_Texture *fbtex;
 
@@ -50,7 +52,7 @@ int render_init(int vertical)
 		return 0;
 	}
 
-	// Allocate framebuffer
+	// Allocate framebuffers
 	render_resize(64, 32);
 
 	return 1;
@@ -58,7 +60,8 @@ int render_init(int vertical)
 
 void render_quit()
 {
-	free((void *) framebuffer);
+	free((void *) framebuffer0);
+	free((void *) framebuffer1);
 
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
@@ -74,13 +77,16 @@ void render_resize(int width, int height)
 {
 	fbwidth = width;
 	fbheight = height;
+	fbpitch = width / 8;
 
-	if (framebuffer)
+	if (framebuffer0)
 	{
-		free((void *) framebuffer);
+		free((void *) framebuffer0);
+		free((void *) framebuffer1);
 	}
 
-	framebuffer = (uint8_t *) calloc((fbwidth / 8) * fbheight, sizeof(uint8_t));
+	framebuffer0 = (uint8_t *) calloc(fbpitch * fbheight, sizeof(uint8_t));
+	framebuffer1 = (uint8_t *) calloc(fbpitch * fbheight, sizeof(uint8_t));
 
 	if (fbtex)
 	{
@@ -100,8 +106,10 @@ static void blit()
 
 	for (int i = 0; i < fbheight * pitch; i += 4)
 	{
-		memset(pixels + i, (framebuffer[i / 4 / 8] & (1 << (7 - ((i / 4) % 8)))) ? 255 : 0, 3);
-		pixels[i + 3] = 255;
+		pixels[i]		= (framebuffer0[i / 4 / 8] & (1 << (7 - ((i / 4) % 8)))) ? 255 : 0;
+		pixels[i + 1]	= (framebuffer1[i / 4 / 8] & (1 << (7 - ((i / 4) % 8)))) ? (pixels[i] == 255 ? 0 : 255) : pixels[i];
+		pixels[i + 2]	= pixels[i];
+		pixels[i + 3]	= 255;
 	}
 
 	SDL_UnlockTexture(fbtex);

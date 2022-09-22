@@ -29,7 +29,7 @@ static int load_rom(char *filename)
 		return 0;
 	}
 
-	fread(memory + 0x200, sizeof(uint8_t), 0x1000 - 0x200, f);
+	fread(memory + 0x200, sizeof(uint8_t), 0x10000 - 0x200, f);
 
 	if (ferror(f))
 	{
@@ -48,7 +48,7 @@ static int load_rom(char *filename)
 int vm_init(char *filename, unsigned int speed)
 {
 	// Allocate memory
-	memory = (uint8_t *) calloc(0x1000, sizeof(uint8_t));
+	memory = (uint8_t *) calloc(0x10000, sizeof(uint8_t));
 
 	// Copy fonts
 	memcpy(memory, font, sizeof(font));
@@ -86,6 +86,8 @@ uint16_t addr = 0;
 
 uint8_t flags[16];
 
+uint8_t plane = 1;
+
 uint8_t delay = 0;
 
 int waitreg = -1;
@@ -105,7 +107,7 @@ uint16_t vm_stack_pop()
 
 static uint8_t next()
 {
-	return memory[(pc++) % 0x1000];
+	return memory[(pc++) % 0x10000];
 }
 
 static void vm_step()
