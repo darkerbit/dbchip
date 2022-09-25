@@ -2,6 +2,7 @@
 
 #include "render.h"
 #include "input.h"
+#include "debug.h"
 
 #include "cimgui.h"
 #include "imgui_impl.h"
@@ -10,6 +11,8 @@ uint8_t *framebuffer0;
 uint8_t *framebuffer1;
 int fbwidth, fbheight;
 int fbpitch;
+
+int debug_enable = 0;
 
 static SDL_Texture *fbtex;
 
@@ -141,6 +144,18 @@ int render_new_frame()
 			return 0;
 
 		case SDL_KEYDOWN:
+			if (e.key.keysym.scancode == SDL_SCANCODE_F12)
+			{
+				debug_enable = !debug_enable;
+				break;
+			}
+
+			if (debug_input(e.key))
+			{
+				debug_enable = 1;
+				break;
+			}
+
 		case SDL_KEYUP:
 			input_event(e.key.type, e.key.keysym);
 			break;
@@ -170,7 +185,8 @@ void render()
 	ImGui_ImplSDL2_NewFrame();
 	igNewFrame();
 
-	igShowDemoWindow(NULL);
+	if (debug_enable)
+		debug();
 
 	igRender();
 	ImGui_ImplSDLRenderer_RenderDrawData((int *) igGetDrawData());

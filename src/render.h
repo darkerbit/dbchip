@@ -1,6 +1,8 @@
 #ifndef DBCHIP_SRC_RENDER_H
 #define DBCHIP_SRC_RENDER_H
 
+extern int debug_enable;
+
 int render_init(int vertical);
 void render_quit();
 

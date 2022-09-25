@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "vm.h"
+#include "render.h"
 #include "timing.h"
 
 static char *error;
@@ -18,8 +19,31 @@ static uint8_t bigfont[] = {
 #include "bigfont.inl"
 };
 
+static char *rom_file;
+static unsigned int vm_speed;
+
+int running = 1;
+
+uint16_t pc;
+
+uint8_t regs[16];
+uint16_t addr;
+
+uint8_t flags[16];
+
+uint8_t plane;
+
+uint8_t delay;
+
+int waitreg;
+
+static uint16_t stack[16];
+static size_t sp;
+
 static int load_rom(char *filename)
 {
+	rom_file = filename;
+
 	FILE *f;
 	if ((f = fopen(filename, "rb")) == NULL)
 	{
@@ -47,6 +71,8 @@ static int load_rom(char *filename)
 
 int vm_init(char *filename, unsigned int speed)
 {
+	vm_speed = speed;
+
 	// Allocate memory
 	memory = (uint8_t *) calloc(0x10000, sizeof(uint8_t));
 
@@ -64,6 +90,18 @@ int vm_init(char *filename, unsigned int speed)
 	// Set timestep
 	timing_vm_init(1000000000 / speed);
 
+	// Initialize VM
+	memset(regs, 0, sizeof(regs));
+	memset(flags, 0, sizeof(regs));
+	memset(stack, 0, sizeof(stack));
+
+	addr = 0;
+	pc = 0x200;
+	sp = 0;
+	delay = 0;
+	waitreg = -1;
+	plane = 1;
+
 	return 1;
 }
 
@@ -72,28 +110,19 @@ void vm_quit()
 	free((void *) memory);
 }
 
+void vm_reset()
+{
+	vm_quit();
+	vm_init(rom_file, vm_speed);
+
+	render_resize(64, 32);
+}
+
 char *vm_get_error()
 {
 	return error;
 }
 
-int running = 1;
-
-uint16_t pc = 0x200;
-
-uint8_t regs[16];
-uint16_t addr = 0;
-
-uint8_t flags[16];
-
-uint8_t plane = 1;
-
-uint8_t delay = 0;
-
-int waitreg = -1;
-
-static uint16_t stack[16];
-static size_t sp = 0;
 
 void vm_stack_push(uint16_t n)
 {
@@ -103,6 +132,11 @@ void vm_stack_push(uint16_t n)
 uint16_t vm_stack_pop()
 {
 	return stack[(--sp) % 16];
+}
+
+uint8_t vm_stack_ptr()
+{
+	return sp;
 }
 
 static uint8_t next()

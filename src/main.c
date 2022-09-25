@@ -7,10 +7,11 @@
 
 const char *usage = "darkerbit's CHIP-8 emulator\n" \
 					"\n" \
-					"Usage: %s [-vertical] [-uncapped] [-speed <cycles per second>] <rom file>\n" \
+					"Usage: %s [-vertical] [-uncapped] [-debug] [-speed <cycles per second>] <rom file>\n" \
 
 					"- -vertical:\tRotates the screen 90 degrees counter-clockwise.\n" \
 					"- -uncapped:\tUncaps draw from 60hz.\n" \
+					"- -debug:\tTurns on debug mode.\n" \
 					"- -speed:\tSets the speed of the emulator, in cycles per second.\n";
 
 int main(int argc, char **argv)
@@ -37,6 +38,10 @@ int main(int argc, char **argv)
 		else if (strcmp(argv[i], "-uncapped") == 0)
 		{
 			uncapped = 1;
+		}
+		else if (strcmp(argv[i], "-debug") == 0)
+		{
+			debug_enable = 1;
 		}
 		else if (strcmp(argv[i], "-speed") == 0)
 		{

@@ -3,6 +3,7 @@
 
 int vm_init(char *filename, unsigned int speed);
 void vm_quit();
+void vm_reset();
 
 char *vm_get_error();
 
@@ -16,6 +17,7 @@ extern uint16_t pc;
 
 void vm_stack_push(uint16_t n);
 uint16_t vm_stack_pop();
+uint8_t vm_stack_ptr();
 
 extern uint8_t *memory;
 
