@@ -42,6 +42,7 @@ int main(int argc, char **argv)
 		else if (strcmp(argv[i], "-debug") == 0)
 		{
 			debug_enable = 1;
+			paused = 1;
 		}
 		else if (strcmp(argv[i], "-speed") == 0)
 		{

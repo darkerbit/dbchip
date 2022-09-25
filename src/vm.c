@@ -24,6 +24,8 @@ static unsigned int vm_speed;
 
 int running = 1;
 
+int paused = 0;
+
 uint16_t pc;
 
 uint8_t regs[16];
@@ -139,16 +141,18 @@ uint8_t vm_stack_ptr()
 	return sp;
 }
 
+uint16_t vm_stack_get(uint8_t i)
+{
+	return stack[i % 16];
+}
+
 static uint8_t next()
 {
 	return memory[(pc++) % 0x10000];
 }
 
-static void vm_step()
+void vm_step()
 {
-	if (waitreg >= 0)
-		return;
-
 	uint8_t b1 = next();
 	uint8_t b2 = next();
 
@@ -171,6 +175,7 @@ void vm_run()
 
 	while (timing_vm_step())
 	{
-		vm_step();
+		if (!paused && waitreg < 0)
+			vm_step();
 	}
 }

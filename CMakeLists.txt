@@ -4,7 +4,7 @@ project(dbchip C CXX)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(dbchip src/main.c src/vm.c src/vm.h src/render.c src/render.h src/timing.h src/decode.c src/input.c src/input.h src/imgui_impl.h src/debug.c src/debug.h)
+add_executable(dbchip src/main.c src/vm.c src/vm.h src/render.c src/render.h src/timing.h src/decode.c src/input.c src/input.h src/imgui_impl.h src/debug.c src/debug.h src/disas_syntax_octo.c)
 
 if(WIN32)
 	# TODO

@@ -28,7 +28,7 @@ static uint8_t arithmetic(uint8_t n, uint8_t x, uint8_t y, int *flag)
 	}
 	case 0x5:
 	{
-		int result = x - y;
+		int result = (int) x - (int) y;
 		*flag = (result >= 0);
 		return (*flag) ? result : result + 256;
 	}
@@ -39,7 +39,7 @@ static uint8_t arithmetic(uint8_t n, uint8_t x, uint8_t y, int *flag)
 	}
 	case 0x7:
 	{
-		int result = y - x;
+		int result = (int) y - (int) x;
 		*flag = (result >= 0);
 		return (*flag) ? result : result + 256;
 	}
